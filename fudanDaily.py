@@ -7,8 +7,8 @@ import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timezone, timedelta
 
-USERNAME = os.getenv("USERNAME")
-PASSWORD = os.getenv("PASSWORD")
+USERNAME = ‘20211220141’
+PASSWORD = ‘fDu040058’
 PUSH_KEY = os.getenv("PUSH_KEY")
 
 fudan_daily_url = "https://zlapp.fudan.edu.cn/site/ncov/fudanDaily"
