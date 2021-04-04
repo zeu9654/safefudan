@@ -5,6 +5,7 @@ import time
 import hashlib
 import requests
 from bs4 import BeautifulSoup
+from datetime import datetime, timezone, timedelta
 
 USERNAME = os.getenv("USERNAME")
 PASSWORD = os.getenv("PASSWORD")
@@ -39,6 +40,11 @@ def get_historical_info(_session):
     return json.loads(response.text)["d"]
 
 
+def get_today_date():
+    _tz = timezone(+timedelta(hours=8))
+    return datetime.now(_tz).strftime("%Y%m%d")
+
+
 def save_log(_session):
     _data = {
         "appkey": "ncov",
@@ -60,12 +66,17 @@ def get_payload(_historical_info):
         "ismoved": 0,
         "number": _historical_info["uinfo"]["role"]["number"],
         "realname": _historical_info["uinfo"]["realname"],
-        "area": _historical_info["oldInfo"]["area"],
-        "city": _historical_info["oldInfo"]["city"],
-        "province": _historical_info["oldInfo"]["province"],
         "sfhbtl": 0,
         "sfjcgrq": 0
     })
+
+    if not _payload["area"]:
+        _payload.update({
+            "area": _historical_info["oldInfo"]["area"],
+            "city": _historical_info["oldInfo"]["city"],
+            "province": _historical_info["oldInfo"]["province"]
+        })
+
     return _payload
 
 
@@ -79,24 +90,28 @@ def save(_session, _payload):
     return _session.post(save_url, data=_payload)
 
 
-def notify(_status, _message):
+def notify(_title, _message=None):
     if not PUSH_KEY:
+        print("未配置PUSH_KEY！")
         return
 
-    _d = {
-        "desp": _message
-    }
-    if _status:
-        _d["text"] = "打卡成功"
-    else:
-        _d["text"] = "打卡失败，请手动打卡"
+    if not _message:
+        _message = _title
 
-    requests.post(f"https://sc.ftqq.com/{PUSH_KEY}.send", data=_d)
+    print(_title)
+    print(_message)
+
+    _response = requests.post(f"https://sc.ftqq.com/{PUSH_KEY}.send", {"text": _title, "desp": _message})
+
+    if _response.status_code == 200:
+        print(f"发送通知状态：{_response.content.decode('utf-8')}")
+    else:
+        print(f"发送通知失败：{_response.status_code}")
 
 
 if __name__ == "__main__":
     if not USERNAME or not PASSWORD:
-        notify(False, "请正确配置用户名和密码！")
+        notify("请正确配置用户名和密码！")
         sys.exit()
 
     login_info = {
@@ -113,13 +128,17 @@ if __name__ == "__main__":
         payload_str = get_payload_str(payload)
         # print(payload_str)
 
+        if payload.get("date") == get_today_date():
+            notify(f"今日已打卡：{payload.get('area')}", f"今日已打卡：{payload_str}")
+            sys.exit()
+
         time.sleep(5)
         response = save(session, payload)
 
         if response.status_code == 200 and response.text == '{"e":0,"m":"操作成功","d":{}}':
-            notify(True, payload_str)
+            notify(f"打卡成功：{payload.get('area')}", payload_str)
         else:
-            notify(False, response.text)
+            notify("打卡失败，请手动打卡", response.text)
 
     except Exception as e:
-        notify(False, str(e))
+        notify("打卡失败，请手动打卡", str(e))
