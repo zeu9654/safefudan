@@ -20,4 +20,6 @@ jobs:
       - name: Run app
         run: python fudanDaily.py
         env:
+          USERNAME: ${{ secrets.USERNAME }}
+          PASSWORD: ${{ secrets.PASSWORD }}
           PUSH_KEY: ${{ secrets.PUSH_KEY }}
