@@ -1,6 +1,8 @@
 name: Fudan Daily
 
 on:
+  watch:
+    types: started
   schedule:
     - cron: '10 11 * * *'
 
